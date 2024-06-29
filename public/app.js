@@ -4,15 +4,19 @@ const cameraoff = document.getElementById("cameraoff")
 const selectCam = document.getElementById("selectCam")
 const selectMic = document.getElementById("selectMic")
 const screenShare = document.getElementById("screenShare")
+const messageInput = document.getElementById("messageInput");
+const sendMessageBtn = document.getElementById("sendMessageBtn");
 
 // socket init 
 const socket = io();
 
 let mediaStream;
+let processedStream;
 let mute = false;
 let camera = true;
 let currentCam;
 let RTC;
+let embedMessage = "";
 
 // sound mute handler
 muteBtn.addEventListener("click", (e) => {
@@ -56,6 +60,11 @@ cameraoff.addEventListener('click', () => {
     }
 })
 
+sendMessageBtn.addEventListener('click', () => {
+    embedMessage = messageInput.value;
+    messageInput.value = '';
+});
+
 
 // getting the medias
 async function getMedia(cameraId, micId) {
@@ -90,7 +99,8 @@ async function getMedia(cameraId, micId) {
 
 
         mediaStream = await window.navigator.mediaDevices.getUserMedia(cameraId || micId ? cameraId ? preferredCameraConstraints : preferredMicConstraints : initialConstraits)
-        
+        displayMedia()
+        // Create canvas and context
         // Create canvas and context
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
@@ -106,24 +116,21 @@ async function getMedia(cameraId, micId) {
             imageCapture.grabFrame().then(imageBitmap => {
                 context.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
 
-                // Modify the image here (e.g., apply grayscale filter)
-                const frame = context.getImageData(0, 0, canvas.width, canvas.height);
-                const data = frame.data;
-                for (let i = 0; i < data.length; i += 4) {
-                    const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-                    data[i] = data[i + 1] = data[i + 2] = avg; // Set R, G, B to the average value
+                if (embedMessage) {
+                    embedMessageInFrame(context, canvas, embedMessage);
+                    // embedMessage = ""; // Reset the message after embedding
+                    console.log('context'+context)
                 }
-                context.putImageData(frame, 0, 0);
 
                 requestAnimationFrame(processFrame);
             });
-            mediaStream = processedStream
+            mediaStream = processedStream;
         }
         processFrame();
         
         // send joining notification
         
-        displayMedia()
+        
         getAllCameras()
         getAllMics()
         makeWebRTCConnection();
@@ -168,6 +175,54 @@ function displayMedia() {
     videoGrid.appendChild(video)
 
 }
+
+function embedMessageInFrame(context, canvas, message) {
+    const frame = context.getImageData(0, 0, canvas.width, canvas.height);
+    const data = frame.data;
+    console.log('data' + data)
+
+    const binaryMessage = message.split('').map(char => {
+        return char.charCodeAt(0).toString(2).padStart(8, '0');
+    }).join('');
+
+    let dataIndex = 0;
+    for (let i = 0; i < binaryMessage.length; i++) {
+        if (dataIndex >= data.length) break;
+
+        // Embed each bit of the message in the least significant bit of each pixel component (R, G, B)
+        data[dataIndex] = (data[dataIndex] & 0xFE) | parseInt(binaryMessage[i]);
+        dataIndex += 4; // Move to the next pixel (R component)
+    }
+    console.log('data1[0]=' + data[0])
+    // Set a flag to mark the frame as containing a message
+    data[0] = 205;
+    console.log('data2[0]=' + data[0])
+
+    context.putImageData(frame, 0, 0);
+}
+
+function extractMessageFromFrame(context, canvas) {
+    const frame = context.getImageData(0, 0, canvas.width, canvas.height);
+    const data = frame.data;
+    console.log('data3[0]=' + data[0])
+
+    // Check the flag to see if the frame contains a message
+    if (data[0] !== 205) return null;
+    // console.log('data[data.length - 1]='+data[data.length - 1])
+
+    let binaryMessage = '';
+    for (let i = 0; i < data.length; i += 4) {
+        const binaryChar = (data[i] & 0x1).toString(); // Extract the least significant bit from the R component
+        binaryMessage += binaryChar;
+    }
+
+    const message = binaryMessage.match(/.{1,8}/g).map(byte => {
+        return String.fromCharCode(parseInt(byte, 2));
+    }).join('');
+
+    return message;
+}
+
 
 // get all cameras
 async function getAllCameras() {
@@ -253,25 +308,86 @@ function makeWebRTCConnection() {
 
     // add media tracks to RTC
     mediaStream.getTracks()
-   .forEach(track => {
-        // console.log(track)
-      RTC.addTrack(track,mediaStream )
-  })
-
-    // send ICE candidate
-  RTC.addEventListener('icecandidate', (data) => {
-    socket.emit( "sendIceCandidate",data.candidate, roomId);
-  })
+    .forEach(track => {
+            // console.log(track)
+        RTC.addTrack(track,mediaStream )
+    })
 
         // send ICE candidate
-  RTC.addEventListener('addstream', (data) => {
-      const videoTag = document.createElement('video');
-      videoTag.srcObject = data.stream;
-      videoTag.addEventListener('loadedmetadata', () => {
-          videoTag.play()
-      })
+    RTC.addEventListener('icecandidate', (data) => {
+        socket.emit( "sendIceCandidate",data.candidate, roomId);
+    })
 
-      videoGrid.appendChild(videoTag)
+        // send ICE candidate
+    RTC.addEventListener('addstream', (data) => {
+        const videoTag = document.createElement('video');
+        videoTag.srcObject = data.stream;
+        videoTag.addEventListener('loadedmetadata', () => {
+            videoTag.play()
+        })
+
+        videoGrid.appendChild(videoTag)
+        // Create canvas and context to extract message
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = 640;  // Set to desired width
+        canvas.height = 480; // Set to desired height
+
+        const [videoTrack] = data.stream.getVideoTracks();
+        const imageCapture = new ImageCapture(videoTrack);
+
+        function processReceivedFrame() {
+            // if (videoTag.readyState === videoTag.HAVE_ENOUGH_DATA) {
+                imageCapture.grabFrame().then(imageBitmap => {
+                    
+                    context.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
+
+                    const message = extractMessageFromFrame(context, canvas);
+                    if (message) {
+                        console.log('Extracted message:', message);
+                        alert('Extracted message: ' + message);
+                    }
+
+                    requestAnimationFrame(processReceivedFrame);
+                });
+            // }
+            // mediaStream = processedStream;
+        }
+        processReceivedFrame();
+
+    //   function processReceivedFrame() {
+    //       if (videoTag.readyState === videoTag.HAVE_ENOUGH_DATA) {
+
+    //         imageCapture.grabFrame().then(imageBitmap => {
+    //             context.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
+    //             const message = extractMessageFromFrame(context, canvas);
+    //             if (message) {
+    //                 console.log('Extracted message:', message);
+    //                 alert('Extracted message: ' + message);
+    //             }
+
+    //             if (embedMessage) {
+    //                 embedMessageInFrame(context, canvas, embedMessage);
+    //                 embedMessage = ""; // Reset the message after embedding
+    //             }
+
+    //             requestAnimationFrame(processFrame);
+    //         });
+
+    //           context.drawImage(videoTag, 0, 0, canvas.width, canvas.height);
+
+    //           // Extract message from the frame
+    //           const message = extractMessageFromFrame(context, canvas);
+    //           if (message) {
+    //               console.log('Extracted message:', message);
+    //               alert('Extracted message: ' + message);
+    //           }
+    //       }
+
+    //       requestAnimationFrame(processReceivedFrame);
+    //   }
+
+    //   processReceivedFrame();
   })
     
 }
