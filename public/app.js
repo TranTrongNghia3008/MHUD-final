@@ -96,15 +96,22 @@ async function getMedia(cameraId, micId) {
     }
 
     try {
-
-
         mediaStream = await window.navigator.mediaDevices.getUserMedia(cameraId || micId ? cameraId ? preferredCameraConstraints : preferredMicConstraints : initialConstraits)
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        await audioContext.audioWorklet.addModule('audio-worklet-processor.js');
+
+        const mediaStreamSource = audioContext.createMediaStreamSource(mediaStream);
+
+        const pitchShifterNode = new AudioWorkletNode(audioContext, 'pitch-shifter-processor');
+
+        mediaStreamSource.connect(pitchShifterNode).connect(audioContext.destination);
+
         displayMedia()
-        // Create canvas and context
         // Create canvas and context
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
-        canvas.width = 640;  // Set to desired width
+        canvas.width = 2000;  // Set to desired width
         canvas.height = 480; // Set to desired height
 
         // Process media stream
