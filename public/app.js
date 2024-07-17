@@ -4,19 +4,15 @@ const cameraoff = document.getElementById("cameraoff")
 const selectCam = document.getElementById("selectCam")
 const selectMic = document.getElementById("selectMic")
 const screenShare = document.getElementById("screenShare")
-const messageInput = document.getElementById("messageInput");
-const sendMessageBtn = document.getElementById("sendMessageBtn");
 
 // socket init 
 const socket = io();
 
 let mediaStream;
-let processedStream;
 let mute = false;
 let camera = true;
 let currentCam;
 let RTC;
-let embedMessage = "";
 
 // sound mute handler
 muteBtn.addEventListener("click", (e) => {
@@ -60,10 +56,18 @@ cameraoff.addEventListener('click', () => {
     }
 })
 
-sendMessageBtn.addEventListener('click', () => {
-    embedMessage = messageInput.value;
-    messageInput.value = '';
-});
+const mtcnnForwardParams = {
+    // limiting the search space to larger faces for webcam detection
+    minFaceSize: 200
+}
+
+//positions for sunglasess
+var results = []
+
+//utility functions
+async function getFace(localVideo, options){
+    results = await faceapi.mtcnn(localVideo, options)
+}
 
 
 // getting the medias
@@ -97,40 +101,45 @@ async function getMedia(cameraId, micId) {
 
     try {
 
-
+        // await faceapi.loadMtcnnModel('/weights')
+        // await faceapi.loadFaceRecognitionModel('/weights')
         mediaStream = await window.navigator.mediaDevices.getUserMedia(cameraId || micId ? cameraId ? preferredCameraConstraints : preferredMicConstraints : initialConstraits)
-        displayMedia()
-        // Create canvas and context
-        // Create canvas and context
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        canvas.width = 640;  // Set to desired width
-        canvas.height = 480; // Set to desired height
-
-        // Process media stream
-        processedStream = canvas.captureStream(30);
-        const [videoTrack] = mediaStream.getVideoTracks();
-        const imageCapture = new ImageCapture(videoTrack);
-
-        function processFrame() {
-            imageCapture.grabFrame().then(imageBitmap => {
-                context.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
-
-                if (embedMessage) {
-                    embedMessageInFrame(context, canvas, embedMessage);
-                    // embedMessage = ""; // Reset the message after embedding
-                    console.log('context'+context)
-                }
-
-                requestAnimationFrame(processFrame);
-            });
-            mediaStream = processedStream;
-        }
-        processFrame();
-        
         // send joining notification
-        
-        
+
+        // let localVideo = document.createElement("video")
+        // const canvas = document.createElement('canvas');
+        // canvas.width = 640;  // Set to desired width
+        // canvas.height = 480;
+        // localVideo.srcObject = mediaStream;
+        // localVideo.autoplay = true
+        // localVideo.addEventListener('playing', () => {
+        //     let ctx = canvas.getContext("2d");
+        //     let image = new Image()
+        //     image.src = "img/sunglasses-style.png"
+
+        //     function step() {
+        //         getFace(localVideo, mtcnnForwardParams)
+        //         ctx.drawImage(localVideo, 0, 0)
+        //         results.map(result => {
+        //             ctx.drawImage(
+        //                 image,
+        //                 result.faceDetection.box.x,
+        //                 result.faceDetection.box.y + 30,
+        //                 result.faceDetection.box.width,
+        //                 result.faceDetection.box.width * (image.height / image.width)
+        //             )
+        //         })
+        //         requestAnimationFrame(step)
+        //     }
+            
+        //     requestAnimationFrame(step)
+        // })
+
+        // mediaStream = canvas.captureStream(30);
+        // // localVideo.srcObject = mediaStream;
+        // videoGrid.appendChild(localVideo)
+      
+        await displayMedia()
         getAllCameras()
         getAllMics()
         makeWebRTCConnection();
@@ -164,65 +173,131 @@ async function getScreenMedia() {
 
 screenShare.addEventListener('click', getScreenMedia)
 
+// function updateTimeStats(timeInMs) {
+//     forwardTimes = [timeInMs].concat(forwardTimes).slice(0, 30)
+//     const avgTimeInMs = forwardTimes.reduce((total, t) => total + t) / forwardTimes.length
+//     $('#time').val(`${Math.round(avgTimeInMs)} ms`)
+//     $('#fps').val(`${faceapi.utils.round(1000 / avgTimeInMs)}`)
+//   }
+
+function calculateAngle(leftEye, rightEye) {
+    const deltaY = rightEye[1].y - leftEye[1].y; // Sự khác biệt về y
+    const deltaX = rightEye[3].x - leftEye[0].x; // Sự khác biệt về x
+    return Math.atan2(deltaY, deltaX); // Tính góc
+}
 
 // display media
-function displayMedia() {
+async function displayMedia() {
+    await faceapi.loadFaceLandmarkModel('./lib/weights')
+    await faceapi.nets.ssdMobilenetv1.loadFromUri('./lib/weights');
     const video = document.createElement('video');
-    video.srcObject = mediaStream;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.width;  // Set to desired width
+    canvas.height = video.height;
+    const originalMediaStream = mediaStream;
+
+    video.srcObject = originalMediaStream;
+    const options = getFaceDetectorOptions()
+    // console.log(options)
+    let image = new Image()
+    image.src = "img/glasses3.png"
+    
+    
+    
+    video.addEventListener('playing', () => {
+        
+        const ctx = canvas.getContext('2d');
+        async function step() {
+            
+            const result = await faceapi.detectSingleFace(video, options).withFaceLandmarks()
+            if (result) {
+                const dims = faceapi.matchDimensions(canvas, video, true)
+                const resizedResult = faceapi.resizeResults(result, dims)
+
+                const landmarks = resizedResult.landmarks;
+
+                // Lấy vị trí các điểm cụ thể
+                const leftEye = landmarks.getLeftEye();  // Một mảng các điểm cho mắt trái
+                const rightEye = landmarks.getRightEye(); // Một mảng các điểm cho mắt phải
+                const nose = landmarks.getNose(); // Một mảng các điểm cho mũi
+                const mouth = landmarks.getMouth(); // Một mảng các điểm cho miệng
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                // console.log(leftEye, arightEye)
+
+                // Tính toán góc nghiêng
+                const angle = calculateAngle(leftEye, rightEye);
+
+                // Tính toán vị trí để vẽ kính
+                const eyeCenter = {
+                    x: (leftEye[0].x + rightEye[3].x) / 2,
+                    y: (leftEye[0].y + rightEye[3].y) / 2,
+                };
+
+                // Tính khoảng cách giữa hai mắt
+                const eyeDistance = Math.hypot(
+                    rightEye[3].x - leftEye[0].x,
+                    rightEye[3].y - leftEye[0].y
+                );
+
+                // Tính toán kích thước kính
+                const glassesWidth = eyeDistance * 2; 
+                const ratio = 0.2; 
+                const glassesHeight = image.height * ratio;
+
+                // Tạo một canvas tạm để xoay ảnh kính
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = glassesWidth;
+                tempCanvas.height = glassesHeight;
+                const tempCtx = tempCanvas.getContext('2d');
+
+                // Xoay canvas
+                tempCtx.translate(glassesWidth / 2, glassesHeight / 2);
+                tempCtx.rotate(angle); // Xoay theo góc tính được
+                tempCtx.drawImage(image, -glassesWidth / 2, -glassesHeight / 2, glassesWidth, glassesHeight);
+
+                // Vẽ kính lên canvas chính
+                ctx.drawImage(tempCanvas, eyeCenter.x - glassesWidth / 2, eyeCenter.y - glassesHeight/1.7);
+                // faceapi.draw.drawDetections(canvas, resizedResult)
+                // faceapi.draw.drawFaceLandmarks(canvas, resizedResult)
+
+                
+            }
+            // ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            requestAnimationFrame(step)
+        }
+
+        requestAnimationFrame(step)
+    })
+    // Tạo media stream từ canvas
+    const canvasStream = canvas.captureStream(30);
+    const newMediaStream = new MediaStream();
+
+    // Thêm các audio tracks từ mediaStream gốc vào newMediaStream
+    originalMediaStream.getAudioTracks().forEach(track => newMediaStream.addTrack(track));
+
+    // Thêm các video tracks từ canvasStream vào newMediaStream
+    canvasStream.getVideoTracks().forEach(track => newMediaStream.addTrack(track));
+    // mediaStream = canvas.captureStream(30)
+
     video.addEventListener('loadedmetadata', () => {
         video.play()
     })
-    videoGrid.appendChild(video)
+
+    // Gán newMediaStream vào video.srcObject
+    // video.srcObject = newMediaStream;
+
+    // Thay thế mediaStream cũ bằng newMediaStream
+    mediaStream = newMediaStream;
+    
+
+
+    
+    // videoGrid.appendChild(video)
+    videoGrid.appendChild(canvas)
 
 }
-
-function embedMessageInFrame(context, canvas, message) {
-    const frame = context.getImageData(0, 0, canvas.width, canvas.height);
-    const data = frame.data;
-    console.log('data' + data)
-
-    const binaryMessage = message.split('').map(char => {
-        return char.charCodeAt(0).toString(2).padStart(8, '0');
-    }).join('');
-
-    let dataIndex = 0;
-    for (let i = 0; i < binaryMessage.length; i++) {
-        if (dataIndex >= data.length) break;
-
-        // Embed each bit of the message in the least significant bit of each pixel component (R, G, B)
-        data[dataIndex] = (data[dataIndex] & 0xFE) | parseInt(binaryMessage[i]);
-        dataIndex += 4; // Move to the next pixel (R component)
-    }
-    console.log('data1[0]=' + data[0])
-    // Set a flag to mark the frame as containing a message
-    data[0] = 205;
-    console.log('data2[0]=' + data[0])
-
-    context.putImageData(frame, 0, 0);
-}
-
-function extractMessageFromFrame(context, canvas) {
-    const frame = context.getImageData(0, 0, canvas.width, canvas.height);
-    const data = frame.data;
-    console.log('data3[0]=' + data[0])
-
-    // Check the flag to see if the frame contains a message
-    if (data[0] !== 205) return null;
-    // console.log('data[data.length - 1]='+data[data.length - 1])
-
-    let binaryMessage = '';
-    for (let i = 0; i < data.length; i += 4) {
-        const binaryChar = (data[i] & 0x1).toString(); // Extract the least significant bit from the R component
-        binaryMessage += binaryChar;
-    }
-
-    const message = binaryMessage.match(/.{1,8}/g).map(byte => {
-        return String.fromCharCode(parseInt(byte, 2));
-    }).join('');
-
-    return message;
-}
-
 
 // get all cameras
 async function getAllCameras() {
@@ -294,6 +369,8 @@ function makeWebRTCConnection() {
     // rtc init
     RTC = new RTCPeerConnection({
         iceServers: [
+            { 'url': 'stun:mtcnnRstun.services.mozilla.com' },
+            { 'url': 'stun:stun.l.google.com:19302' },
             {
               urls: 'stun:stun1.l.google.com:19302'
             },
@@ -308,86 +385,24 @@ function makeWebRTCConnection() {
 
     // add media tracks to RTC
     mediaStream.getTracks()
-    .forEach(track => {
-            // console.log(track)
-        RTC.addTrack(track,mediaStream )
-    })
+   .forEach(track => {
+      RTC.addTrack(track,mediaStream )
+  })
+
+    // send ICE candidate
+  RTC.addEventListener('icecandidate', (data) => {
+    socket.emit( "sendIceCandidate",data.candidate, roomId);
+  })
 
         // send ICE candidate
-    RTC.addEventListener('icecandidate', (data) => {
-        socket.emit( "sendIceCandidate",data.candidate, roomId);
-    })
+  RTC.addEventListener('addstream', (data) => {
+      const videoTag = document.createElement('video');
+      videoTag.srcObject = data.stream;
+      videoTag.addEventListener('loadedmetadata', () => {
+          videoTag.play()
+      })
 
-        // send ICE candidate
-    RTC.addEventListener('addstream', (data) => {
-        const videoTag = document.createElement('video');
-        videoTag.srcObject = data.stream;
-        videoTag.addEventListener('loadedmetadata', () => {
-            videoTag.play()
-        })
-
-        videoGrid.appendChild(videoTag)
-        // Create canvas and context to extract message
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        canvas.width = 640;  // Set to desired width
-        canvas.height = 480; // Set to desired height
-
-        const [videoTrack] = data.stream.getVideoTracks();
-        const imageCapture = new ImageCapture(videoTrack);
-
-        function processReceivedFrame() {
-            // if (videoTag.readyState === videoTag.HAVE_ENOUGH_DATA) {
-                imageCapture.grabFrame().then(imageBitmap => {
-                    
-                    context.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
-
-                    const message = extractMessageFromFrame(context, canvas);
-                    if (message) {
-                        console.log('Extracted message:', message);
-                        alert('Extracted message: ' + message);
-                    }
-
-                    requestAnimationFrame(processReceivedFrame);
-                });
-            // }
-            // mediaStream = processedStream;
-        }
-        processReceivedFrame();
-
-    //   function processReceivedFrame() {
-    //       if (videoTag.readyState === videoTag.HAVE_ENOUGH_DATA) {
-
-    //         imageCapture.grabFrame().then(imageBitmap => {
-    //             context.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
-    //             const message = extractMessageFromFrame(context, canvas);
-    //             if (message) {
-    //                 console.log('Extracted message:', message);
-    //                 alert('Extracted message: ' + message);
-    //             }
-
-    //             if (embedMessage) {
-    //                 embedMessageInFrame(context, canvas, embedMessage);
-    //                 embedMessage = ""; // Reset the message after embedding
-    //             }
-
-    //             requestAnimationFrame(processFrame);
-    //         });
-
-    //           context.drawImage(videoTag, 0, 0, canvas.width, canvas.height);
-
-    //           // Extract message from the frame
-    //           const message = extractMessageFromFrame(context, canvas);
-    //           if (message) {
-    //               console.log('Extracted message:', message);
-    //               alert('Extracted message: ' + message);
-    //           }
-    //       }
-
-    //       requestAnimationFrame(processReceivedFrame);
-    //   }
-
-    //   processReceivedFrame();
+      videoGrid.appendChild(videoTag)
   })
     
 }
@@ -398,7 +413,6 @@ function makeWebRTCConnection() {
 async function makeAOffer() {
     const offer = await RTC.createOffer();
     RTC.setLocalDescription(offer)
-    console.log(offer)
     // send the offer 
     socket.emit("sendTheOffer", offer, roomId)
 }
