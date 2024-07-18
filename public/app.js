@@ -162,7 +162,16 @@ async function getMedia(cameraId, micId) {
 
                 requestAnimationFrame(processFrame);
             });
-            mediaStream = processedStream;
+
+            const newMediaStream = new MediaStream();
+
+            // Thêm các audio tracks từ mediaStream gốc vào newMediaStream
+            mediaStream.getAudioTracks().forEach(track => newMediaStream.addTrack(track));
+
+            // Thêm các video tracks từ processedStream vào newMediaStream
+            processedStream.getVideoTracks().forEach(track => newMediaStream.addTrack(track));
+
+            mediaStream = newMediaStream;
         }
         processFrame();
         
@@ -206,11 +215,11 @@ screenShare.addEventListener('click', getScreenMedia)
 // display media
 function displayMedia() {
     const video = document.createElement('video');
-    // video.srcObject = mediaStream;
+    video.srcObject = mediaStream;
     video.addEventListener('loadedmetadata', () => {
         video.play()
     })
-    // videoGrid.appendChild(video)
+    videoGrid.appendChild(video)
 
 }
 
