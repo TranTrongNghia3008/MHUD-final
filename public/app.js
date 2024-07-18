@@ -173,18 +173,187 @@ async function getScreenMedia() {
 
 screenShare.addEventListener('click', getScreenMedia)
 
-// function updateTimeStats(timeInMs) {
-//     forwardTimes = [timeInMs].concat(forwardTimes).slice(0, 30)
-//     const avgTimeInMs = forwardTimes.reduce((total, t) => total + t) / forwardTimes.length
-//     $('#time').val(`${Math.round(avgTimeInMs)} ms`)
-//     $('#fps').val(`${faceapi.utils.round(1000 / avgTimeInMs)}`)
-//   }
+let image = new Image()
+image.src = ""
+
+document.addEventListener("DOMContentLoaded", () => {
+    const dropdownItems = document.querySelectorAll(".dropdown-item");
+
+    dropdownItems.forEach(item => {
+      item.addEventListener("click", (event) => {
+        event.preventDefault();
+        const src = item.getAttribute("data-src");
+        if (src) {
+          image.src = src;
+        } else {
+          image.src = ""; // Reset filter if "No filter" is selected
+        }
+      });
+    });
+});
 
 function calculateAngle(leftEye, rightEye) {
     const deltaY = rightEye[1].y - leftEye[1].y; // Sự khác biệt về y
     const deltaX = rightEye[3].x - leftEye[0].x; // Sự khác biệt về x
     return Math.atan2(deltaY, deltaX); // Tính góc
 }
+
+function calculateGlassesParameters(landmarks) {
+    console.log(image.src)
+    // Lấy vị trí các điểm cụ thể
+    const leftEye = landmarks.getLeftEye();  // Một mảng các điểm cho mắt trái
+    const rightEye = landmarks.getRightEye(); // Một mảng các điểm cho mắt phải
+
+    // Tính toán góc nghiêng
+    const angle = calculateAngle(leftEye, rightEye);
+
+    // Tính toán vị trí để vẽ kính
+    const eyeCenter = {
+        x: (leftEye[0].x + rightEye[3].x) / 2,
+        y: (leftEye[0].y + rightEye[3].y) / 2,
+    };
+
+    // Tính khoảng cách giữa hai mắt
+    const eyeDistance = Math.hypot(
+        rightEye[3].x - leftEye[0].x,
+        rightEye[3].y - leftEye[0].y
+    );
+
+    // Tính toán kích thước kính
+    const glassesWidth = eyeDistance * 2; 
+    const ratio = 0.2; 
+    const glassesHeight = image.height * ratio;
+
+    return {
+        canvasWidth: glassesWidth,
+        canvasHeight: glassesHeight,
+        translateX: glassesWidth / 2,
+        translateY: glassesHeight / 2,
+        angle,
+        drawImageX: -glassesWidth / 2,
+        drawImageY: -glassesHeight / 2,
+        drawImageWidth: glassesWidth,
+        drawImageHeight: glassesHeight,
+        finalDrawX: eyeCenter.x - glassesWidth / 2,
+        finalDrawY: eyeCenter.y - glassesHeight / 1.7
+    };
+}
+
+
+function calculateAngleBetweenPoints(point1, point2) {
+    const deltaY = point2.y - point1.y;
+    const deltaX = point2.x - point1.x;
+    return Math.atan2(deltaY, deltaX);
+}
+
+function calculateHatParameters(landmarks) {
+    // Lấy vị trí các điểm cụ thể
+    const jawOutline = landmarks.getJawOutline();  // Một mảng các điểm cho viền mặt
+
+    // Tìm hai điểm trên cùng của viền mặt
+    const topPoint1 = jawOutline[0];
+    const topPoint2 = jawOutline[16];
+
+    // Tính toán góc nghiêng
+    const angle = calculateAngleBetweenPoints(topPoint1, topPoint2);
+
+    // Tính toán vị trí để vẽ mũ
+    const centerX = (topPoint1.x + topPoint2.x) / 2;
+    const centerY = (topPoint1.y + topPoint2.y) / 2;
+
+    // Tính khoảng cách giữa hai điểm trên cùng của viền mặt
+    const distance = Math.hypot(
+        topPoint2.x - topPoint1.x,
+        topPoint2.y - topPoint1.y
+    );
+
+    // Tính toán kích thước mũ
+    const hatWidth = distance * 3; 
+    const ratio = 0.5; // Tỷ lệ kích thước của mũ
+    const hatHeight = image.width * ratio;
+
+    return {
+        canvasWidth: hatWidth,
+        canvasHeight: hatHeight,
+        translateX: hatWidth / 2,
+        translateY: hatHeight / 2,
+        angle,
+        drawImageX: -hatWidth / 2,
+        drawImageY: -hatHeight / 2,
+        drawImageWidth: hatWidth,
+        drawImageHeight: hatHeight,
+        finalDrawX: centerX - hatWidth / 2,
+        finalDrawY: centerY - hatHeight / 2
+    };
+}
+
+function calculateMaskParameters(landmarks) {
+    // Lấy các điểm landmarks
+    const jawOutline = landmarks.getJawOutline(); // Viền mặt
+    const leftEyebrow = landmarks.getLeftEyeBrow(); // Chân mày trái
+    const rightEyebrow = landmarks.getRightEyeBrow(); // Chân mày phải
+
+    // Tìm điểm giữa của hai chân mày
+    const eyebrowCenterX = (leftEyebrow[4].x + rightEyebrow[0].x) / 2;
+    const eyebrowCenterY = (leftEyebrow[4].y + rightEyebrow[0].y) / 2;
+    const eyebrowCenter = { x: eyebrowCenterX, y: eyebrowCenterY };
+
+    // Tìm các điểm trên cùng của viền mặt (điểm giữa bên trái và bên phải)
+    // Tìm hai điểm trên cùng của viền mặt
+    const topPoint1 = jawOutline[0];
+    const topPoint2 = jawOutline[16];
+    console.log(jawOutline)
+
+    // Tính toán góc nghiêng
+    const angle = calculateAngleBetweenPoints(topPoint1, topPoint2);
+
+
+
+    // Tính toán vị trí để vẽ mặt nạ
+    const maskCenter = eyebrowCenter;
+
+    // Tính khoảng cách giữa hai điểm trên cùng của viền mặt
+    const distance = Math.hypot(
+        topPoint2.x - topPoint1.x,
+        topPoint2.y - topPoint1.y
+    );
+
+
+    // Tính toán kích thước mặt nạ
+    const maskWidth = distance * 2;
+    const ratio = 1.3; // Tỷ lệ kích thước ảnh mặt nạ
+    const maskHeight = maskWidth * ratio;
+
+    return {
+        canvasWidth: maskWidth,
+        canvasHeight: maskHeight,
+        translateX: maskWidth / 2,
+        translateY: maskHeight / 2,
+        angle, // Mặt nạ thường không cần xoay
+        drawImageX: -maskWidth / 2,
+        drawImageY: -maskHeight / 2,
+        drawImageWidth: maskWidth,
+        drawImageHeight: maskHeight,
+        finalDrawX: maskCenter.x - maskWidth / 2,
+        finalDrawY: maskCenter.y - maskHeight / 1.9
+    };
+}
+
+
+async function calculateFilterParameters(landmarks) {
+    const imagePath = new URL(image.src).pathname;
+    switch (imagePath) {
+        case '/img/glasses3.png':
+            return calculateGlassesParameters(landmarks);
+        case '/img/hat.png':
+            return calculateHatParameters(landmarks);
+        case '/img/mask.png':
+            return calculateMaskParameters(landmarks);
+        default:
+            return null;
+    }
+}
+
 
 // display media
 async function displayMedia() {
@@ -194,19 +363,17 @@ async function displayMedia() {
     const canvas = document.createElement('canvas');
     canvas.width = video.width;  // Set to desired width
     canvas.height = video.height;
+    const ctx = canvas.getContext('2d');
     const originalMediaStream = mediaStream;
 
     video.srcObject = originalMediaStream;
     const options = getFaceDetectorOptions()
     // console.log(options)
-    let image = new Image()
-    image.src = "img/glasses3.png"
     
     
     
     video.addEventListener('playing', () => {
         
-        const ctx = canvas.getContext('2d');
         async function step() {
             
             const result = await faceapi.detectSingleFace(video, options).withFaceLandmarks()
@@ -216,54 +383,38 @@ async function displayMedia() {
 
                 const landmarks = resizedResult.landmarks;
 
-                // Lấy vị trí các điểm cụ thể
-                const leftEye = landmarks.getLeftEye();  // Một mảng các điểm cho mắt trái
-                const rightEye = landmarks.getRightEye(); // Một mảng các điểm cho mắt phải
-                const nose = landmarks.getNose(); // Một mảng các điểm cho mũi
-                const mouth = landmarks.getMouth(); // Một mảng các điểm cho miệng
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                // Tính toán các tham số cần thiết
+                const params = await calculateFilterParameters(landmarks);
 
-                // console.log(leftEye, arightEye)
+                if (params) {
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-                // Tính toán góc nghiêng
-                const angle = calculateAngle(leftEye, rightEye);
+                    // Tạo một canvas tạm để xoay ảnh kính
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = params.canvasWidth;
+                    tempCanvas.height = params.canvasHeight;
+                    const tempCtx = tempCanvas.getContext('2d');
 
-                // Tính toán vị trí để vẽ kính
-                const eyeCenter = {
-                    x: (leftEye[0].x + rightEye[3].x) / 2,
-                    y: (leftEye[0].y + rightEye[3].y) / 2,
-                };
+                    // Xoay canvas
+                    tempCtx.translate(params.translateX, params.translateY);
+                    tempCtx.rotate(params.angle); // Xoay theo góc tính được
+                    tempCtx.drawImage(image, params.drawImageX, params.drawImageY, params.drawImageWidth, params.drawImageHeight);
 
-                // Tính khoảng cách giữa hai mắt
-                const eyeDistance = Math.hypot(
-                    rightEye[3].x - leftEye[0].x,
-                    rightEye[3].y - leftEye[0].y
-                );
+                    // Vẽ kính lên canvas chính
+                    ctx.drawImage(tempCanvas, params.finalDrawX, params.finalDrawY);
+                }
+                else {
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                }
 
-                // Tính toán kích thước kính
-                const glassesWidth = eyeDistance * 2; 
-                const ratio = 0.2; 
-                const glassesHeight = image.height * ratio;
-
-                // Tạo một canvas tạm để xoay ảnh kính
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = glassesWidth;
-                tempCanvas.height = glassesHeight;
-                const tempCtx = tempCanvas.getContext('2d');
-
-                // Xoay canvas
-                tempCtx.translate(glassesWidth / 2, glassesHeight / 2);
-                tempCtx.rotate(angle); // Xoay theo góc tính được
-                tempCtx.drawImage(image, -glassesWidth / 2, -glassesHeight / 2, glassesWidth, glassesHeight);
-
-                // Vẽ kính lên canvas chính
-                ctx.drawImage(tempCanvas, eyeCenter.x - glassesWidth / 2, eyeCenter.y - glassesHeight/1.7);
                 // faceapi.draw.drawDetections(canvas, resizedResult)
                 // faceapi.draw.drawFaceLandmarks(canvas, resizedResult)
-
                 
             }
-            // ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            else {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            }
+       
 
             requestAnimationFrame(step)
         }
