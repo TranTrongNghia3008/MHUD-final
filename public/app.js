@@ -146,78 +146,7 @@ async function getMedia(cameraId, micId) {
 
         mediaStreamSource.connect(audioContext.destination);
 
-        displayMedia()
-        // Create canvas and context
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        canvas.width = 640;  // Set to desired width
-        canvas.height = 480; // Set to desired height
-
-        // Process media stream
-        processedStream = canvas.captureStream(30);
-        const [videoTrack] = mediaStream.getVideoTracks();
-        const imageCapture = new ImageCapture(videoTrack);
-
-        function processFrame() {
-            imageCapture.grabFrame().then(imageBitmap => {
-                context.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
-
-                if (embedMessage) {
-                    embedMessageInFrame(context, canvas, embedMessage);
-                    // embedMessage = ""; // Reset the message after embedding
-                    console.log('context'+context)
-                }
-
-                requestAnimationFrame(processFrame);
-            });
-
-            const newMediaStream = new MediaStream();
-
-            // Thêm các audio tracks từ mediaStream gốc vào newMediaStream
-            mediaStream.getAudioTracks().forEach(track => newMediaStream.addTrack(track));
-
-            // Thêm các video tracks từ processedStream vào newMediaStream
-            processedStream.getVideoTracks().forEach(track => newMediaStream.addTrack(track));
-
-            mediaStream = newMediaStream;
-        }
-        processFrame();
-        
-        // send joining notification
-
-        // let localVideo = document.createElement("video")
-        // const canvas = document.createElement('canvas');
-        // canvas.width = 640;  // Set to desired width
-        // canvas.height = 480;
-        // localVideo.srcObject = mediaStream;
-        // localVideo.autoplay = true
-        // localVideo.addEventListener('playing', () => {
-        //     let ctx = canvas.getContext("2d");
-        //     let image = new Image()
-        //     image.src = "img/sunglasses-style.png"
-
-        //     function step() {
-        //         getFace(localVideo, mtcnnForwardParams)
-        //         ctx.drawImage(localVideo, 0, 0)
-        //         results.map(result => {
-        //             ctx.drawImage(
-        //                 image,
-        //                 result.faceDetection.box.x,
-        //                 result.faceDetection.box.y + 30,
-        //                 result.faceDetection.box.width,
-        //                 result.faceDetection.box.width * (image.height / image.width)
-        //             )
-        //         })
-        //         requestAnimationFrame(step)
-        //     }
-            
-        //     requestAnimationFrame(step)
-        // })
-
-        // mediaStream = canvas.captureStream(30);
-        // // localVideo.srcObject = mediaStream;
-        // videoGrid.appendChild(localVideo)
-      
+        // displayMedia()
         await displayMedia()
         getAllCameras()
         getAllMics()
