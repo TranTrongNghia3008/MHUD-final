@@ -1,3 +1,5 @@
+import { stringToBinary, encryptBinaryData, embedMessageInFrame, extractMessageFromFrame } from './steganography.js';
+
 const videoGrid = document.getElementById("video_grid");
 const muteBtn = document.getElementById("muteBtn")
 const cameraoff = document.getElementById("cameraoff")
@@ -60,13 +62,8 @@ cameraoff.addEventListener('click', () => {
     }
 })
 
-sendMessageBtn.addEventListener('click', () => {
-    embedMessage = messageInput.value;
-    messageInput.value = '';
-});
-
-
 // getting the medias
+// hàm getMedia() được gọi để yêu cầu quyền truy cập vào camera và microphone của thiết bị
 async function getMedia(cameraId, micId) {
 
 
@@ -100,39 +97,11 @@ async function getMedia(cameraId, micId) {
 
         mediaStream = await window.navigator.mediaDevices.getUserMedia(cameraId || micId ? cameraId ? preferredCameraConstraints : preferredMicConstraints : initialConstraits)
         displayMedia()
-        // Create canvas and context
-        // Create canvas and context
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        canvas.width = 640;  // Set to desired width
-        canvas.height = 480; // Set to desired height
-
-        // Process media stream
-        processedStream = canvas.captureStream(30);
-        const [videoTrack] = mediaStream.getVideoTracks();
-        const imageCapture = new ImageCapture(videoTrack);
-
-        function processFrame() {
-            imageCapture.grabFrame().then(imageBitmap => {
-                context.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
-
-                if (embedMessage) {
-                    embedMessageInFrame(context, canvas, embedMessage);
-                    // embedMessage = ""; // Reset the message after embedding
-                    console.log('context'+context)
-                }
-
-                requestAnimationFrame(processFrame);
-            });
-            mediaStream = processedStream;
-        }
-        processFrame();
-        
-        // send joining notification
         
         
         getAllCameras()
         getAllMics()
+        // hàm getAllCameras() và getAllMics() được gọi để lấy danh sách các camera và microphone có sẵn trên thiết bị, và hiển thị chúng trên giao diện để người dùng có thể lựa chọn
         makeWebRTCConnection();
 
         // room joining event
@@ -176,52 +145,40 @@ function displayMedia() {
 
 }
 
-function embedMessageInFrame(context, canvas, message) {
-    const frame = context.getImageData(0, 0, canvas.width, canvas.height);
-    const data = frame.data;
-    console.log('data' + data)
+sendMessageBtn.addEventListener('click', async () => {
+    embedMessage = messageInput.value;
+    messageInput.value = '';
 
-    const binaryMessage = message.split('').map(char => {
-        return char.charCodeAt(0).toString(2).padStart(8, '0');
-    }).join('');
+    if (embedMessage) {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = 640;  // Điều chỉnh theo kích thước khung hình video của bạn
+        canvas.height = 480; // Điều chỉnh theo kích thước khung hình video của bạn
 
-    let dataIndex = 0;
-    for (let i = 0; i < binaryMessage.length; i++) {
-        if (dataIndex >= data.length) break;
+        const videoTrack = mediaStream.getVideoTracks()[0];
+        const imageCapture = new ImageCapture(videoTrack);
 
-        // Embed each bit of the message in the least significant bit of each pixel component (R, G, B)
-        data[dataIndex] = (data[dataIndex] & 0xFE) | parseInt(binaryMessage[i]);
-        dataIndex += 4; // Move to the next pixel (R component)
+        imageCapture.grabFrame().then(imageBitmap => {
+            context.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
+            
+            // console.log(embedMessage)
+            const binaryMessage = stringToBinary(embedMessage);
+            // console.log(binaryMessage);
+            const encryptedMessage = encryptBinaryData(binaryMessage);
+            // console.log(encryptedMessage);
+            embedMessageInFrame(context, canvas, encryptedMessage);
+            // console.log(context.getImageData(0, 0, canvas.width, canvas.height).data);
+
+            const imageData = canvas.toDataURL(); // Mã hoá dữ liệu vào hình ảnh
+            socket.emit('sendContext', { imageData: imageData }, roomId);
+
+        }).catch(error => {
+            console.error('Error embedding message in frame:', error);
+        });
     }
-    console.log('data1[0]=' + data[0])
-    // Set a flag to mark the frame as containing a message
-    data[0] = 205;
-    console.log('data2[0]=' + data[0])
+});
 
-    context.putImageData(frame, 0, 0);
-}
 
-function extractMessageFromFrame(context, canvas) {
-    const frame = context.getImageData(0, 0, canvas.width, canvas.height);
-    const data = frame.data;
-    console.log('data3[0]=' + data[0])
-
-    // Check the flag to see if the frame contains a message
-    if (data[0] !== 205) return null;
-    // console.log('data[data.length - 1]='+data[data.length - 1])
-
-    let binaryMessage = '';
-    for (let i = 0; i < data.length; i += 4) {
-        const binaryChar = (data[i] & 0x1).toString(); // Extract the least significant bit from the R component
-        binaryMessage += binaryChar;
-    }
-
-    const message = binaryMessage.match(/.{1,8}/g).map(byte => {
-        return String.fromCharCode(parseInt(byte, 2));
-    }).join('');
-
-    return message;
-}
 
 
 // get all cameras
@@ -312,7 +269,6 @@ function makeWebRTCConnection() {
             // console.log(track)
         RTC.addTrack(track,mediaStream )
     })
-
         // send ICE candidate
     RTC.addEventListener('icecandidate', (data) => {
         socket.emit( "sendIceCandidate",data.candidate, roomId);
@@ -327,70 +283,109 @@ function makeWebRTCConnection() {
         })
 
         videoGrid.appendChild(videoTag)
-        // Create canvas and context to extract message
+    })
+
+    // Đoạn mã cho người nhận
+    // Khi nhận được một sender mới từ phía người gửi
+    RTC.addEventListener('track', async (event) => {
+        if (event.track.kind === 'video') {
+            const receiverVideoTrack = event.track;
+
+            // Lấy khung hình từ video track mới
+            const stream = new MediaStream([receiverVideoTrack]);
+            const videoElement = document.createElement('video');
+            videoElement.srcObject = stream;
+            // console.log(1)
+            // console.log(new Date());
+        }
+    });
+}
+
+socket.on('receiveContext', async (data) => {
+    // const imgElement = document.getElementById('receivedImage');
+    const imageDataUrl = data.imageData; // Assume imageData is a base64 encoded image data URL
+    // console.log('Received image data:', imageDataUrl);
+
+    // Tải hình ảnh từ data URL
+    const response = await fetch(imageDataUrl);
+    const blob = await response.blob();
+    const img = new Image();
+
+    img.onload = function() {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
-        canvas.width = 640;  // Set to desired width
-        canvas.height = 480; // Set to desired height
+        canvas.width = img.width;
+        canvas.height = img.height;
+        context.drawImage(img, 0, 0);
+        // console.log(context.getImageData(0, 0, canvas.width, canvas.height).data);
 
-        const [videoTrack] = data.stream.getVideoTracks();
-        const imageCapture = new ImageCapture(videoTrack);
-
-        function processReceivedFrame() {
-            // if (videoTag.readyState === videoTag.HAVE_ENOUGH_DATA) {
-                imageCapture.grabFrame().then(imageBitmap => {
-                    
-                    context.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
-
-                    const message = extractMessageFromFrame(context, canvas);
-                    if (message) {
-                        console.log('Extracted message:', message);
-                        alert('Extracted message: ' + message);
-                    }
-
-                    requestAnimationFrame(processReceivedFrame);
-                });
-            // }
-            // mediaStream = processedStream;
+        // Giải mã dữ liệu từ hình ảnh
+        const hiddenMessage = extractMessageFromFrame(context, canvas);
+        if (hiddenMessage) {
+            console.log('Hidden message received:', hiddenMessage);
+            // Xử lý hoặc hiển thị dữ liệu ở đây
+        } else {
+            console.log('No hidden message found.');
         }
-        processReceivedFrame();
 
-    //   function processReceivedFrame() {
-    //       if (videoTag.readyState === videoTag.HAVE_ENOUGH_DATA) {
+        // phải giải phóng tài nguyên
+        URL.revokeObjectURL(img.src);
+    };
 
-    //         imageCapture.grabFrame().then(imageBitmap => {
-    //             context.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
-    //             const message = extractMessageFromFrame(context, canvas);
-    //             if (message) {
-    //                 console.log('Extracted message:', message);
-    //                 alert('Extracted message: ' + message);
-    //             }
+    img.src = URL.createObjectURL(blob); // Gán hình ảnh vào src để load
+    // imgElement.src = data.imageData;
+});
 
-    //             if (embedMessage) {
-    //                 embedMessageInFrame(context, canvas, embedMessage);
-    //                 embedMessage = ""; // Reset the message after embedding
-    //             }
+$(document).ready(function () {
+    $('#fileInput').on('change', function () {
+        // Xử lý khi người dùng chọn tệp
+        const selectedFile = $(this)[0].files[0];
+        if (selectedFile) {
+            $('#uploadBtn').prop('disabled', false); // Kích hoạt nút uploadBtn nếu đã có tệp được chọn
+        } else {
+            $('#uploadBtn').prop('disabled', true); // Vô hiệu hóa nút uploadBtn nếu không có tệp nào được chọn
+        }
+    });
 
-    //             requestAnimationFrame(processFrame);
-    //         });
+    $('#uploadBtn').on('click', function () {
+        // Xử lý khi người dùng nhấn nút Upload
+        const formData = new FormData($('#uploadForm')[0]);
 
-    //           context.drawImage(videoTag, 0, 0, canvas.width, canvas.height);
+        $.ajax({
+            url: '/upload',
+            type: 'POST',
+            data: formData,
+            contentType: false,
+            processData: false,
+            success: function (response) {
+                alert('File uploaded successfully!');
+                // Emit socket event 'fileUploaded' with roomId
+                socket.emit('fileUploaded', {
+                    fileUrl: response.fileUrl,
+                    filename: response.filename
+                }, roomId);
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                alert('File upload failed!');
+            }
+        });
+    });
+});
 
-    //           // Extract message from the frame
-    //           const message = extractMessageFromFrame(context, canvas);
-    //           if (message) {
-    //               console.log('Extracted message:', message);
-    //               alert('Extracted message: ' + message);
-    //           }
-    //       }
+socket.on('renderFileUploaded', (data) => {
+    // Tạo thẻ a để tải xuống tệp
+    const fileLink = document.createElement('a');
+    fileLink.href = `/download/${encodeURIComponent(data.fileUrl)}`;
+    fileLink.innerText = `Download ${data.filename}`;
+    fileLink.target = "_blank"; // Mở liên kết trong một tab mới
 
-    //       requestAnimationFrame(processReceivedFrame);
-    //   }
+    // Tìm phần tử div để chứa thẻ a
+    const uploadedFilesDiv = document.getElementById('uploadedFiles');
+    uploadedFilesDiv.appendChild(fileLink);
 
-    //   processReceivedFrame();
-  })
-    
-}
+    // Thêm dòng mới (br tag) để ngăn cách các liên kết
+    uploadedFilesDiv.appendChild(document.createElement('br'));
+});
 
 
 
@@ -398,7 +393,6 @@ function makeWebRTCConnection() {
 async function makeAOffer() {
     const offer = await RTC.createOffer();
     RTC.setLocalDescription(offer)
-    console.log(offer)
     // send the offer 
     socket.emit("sendTheOffer", offer, roomId)
 }
