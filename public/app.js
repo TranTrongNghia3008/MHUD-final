@@ -4,15 +4,23 @@ const cameraoff = document.getElementById("cameraoff")
 const selectCam = document.getElementById("selectCam")
 const selectMic = document.getElementById("selectMic")
 const screenShare = document.getElementById("screenShare")
+const messageInput = document.getElementById("messageInput");
+const sendMessageBtn = document.getElementById("sendMessageBtn");
+const changeVoiceBtn = document.getElementById("changeVoiceBtn"); 
 
 // socket init 
 const socket = io();
 
 let mediaStream;
 let mute = false;
+let changeVoice = false;
 let camera = true;
 let currentCam;
 let RTC;
+let embedMessage = "";
+let audioContext;
+let mediaStreamSource;
+let pitchShifterNode;
 
 // sound mute handler
 muteBtn.addEventListener("click", (e) => {
@@ -31,8 +39,31 @@ muteBtn.addEventListener("click", (e) => {
                 track.enabled = false;
             })
     }
+})
 
+// Changevoice handler
+changeVoiceBtn.addEventListener("click", (e) => {
+    if (changeVoice) {
+        changeVoice = false;
+        changeVoiceBtn.textContent = "Change voice";
 
+        // Ngắt kết nối pitchShifterNode
+        mediaStreamSource.disconnect(pitchShifterNode);
+        pitchShifterNode.disconnect(audioContext.destination);
+
+        // Kết nối lại mediaStreamSource trực tiếp tới audioContext.destination
+        mediaStreamSource.connect(audioContext.destination);
+
+    } else {
+        changeVoice = true;
+        changeVoiceBtn.textContent = "Unchange voice";
+        // Ngắt kết nối mediaStreamSource khỏi audioContext.destination
+        mediaStreamSource.disconnect(audioContext.destination);
+
+        // Kết nối mediaStreamSource tới pitchShifterNode và pitchShifterNode tới audioContext.destination
+        mediaStreamSource.connect(pitchShifterNode).connect(audioContext.destination);
+        
+    }
 })
 
 
@@ -72,8 +103,6 @@ async function getFace(localVideo, options){
 
 // getting the medias
 async function getMedia(cameraId, micId) {
-
-
     currentCam = cameraId === null ? currentCam : cameraId;
 
     const initialConstraits = {
@@ -100,10 +129,60 @@ async function getMedia(cameraId, micId) {
     }
 
     try {
-
-        // await faceapi.loadMtcnnModel('/weights')
+        // Kiểm tra và yêu cầu quyền truy cập microphone        // await faceapi.loadMtcnnModel('/weights')
         // await faceapi.loadFaceRecognitionModel('/weights')
         mediaStream = await window.navigator.mediaDevices.getUserMedia(cameraId || micId ? cameraId ? preferredCameraConstraints : preferredMicConstraints : initialConstraits)
+        // Tạo AudioContext
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Thêm module AudioWorkletProcessor
+        await audioContext.audioWorklet.addModule('audio-worklet-processor.js');
+
+        // Tạo MediaStreamSource
+        mediaStreamSource = audioContext.createMediaStreamSource(mediaStream);
+
+        // Tạo AudioWorkletNode
+        pitchShifterNode = new AudioWorkletNode(audioContext, 'pitch-shifter-processor');
+
+        mediaStreamSource.connect(audioContext.destination);
+
+        displayMedia()
+        // Create canvas and context
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = 640;  // Set to desired width
+        canvas.height = 480; // Set to desired height
+
+        // Process media stream
+        processedStream = canvas.captureStream(30);
+        const [videoTrack] = mediaStream.getVideoTracks();
+        const imageCapture = new ImageCapture(videoTrack);
+
+        function processFrame() {
+            imageCapture.grabFrame().then(imageBitmap => {
+                context.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
+
+                if (embedMessage) {
+                    embedMessageInFrame(context, canvas, embedMessage);
+                    // embedMessage = ""; // Reset the message after embedding
+                    console.log('context'+context)
+                }
+
+                requestAnimationFrame(processFrame);
+            });
+
+            const newMediaStream = new MediaStream();
+
+            // Thêm các audio tracks từ mediaStream gốc vào newMediaStream
+            mediaStream.getAudioTracks().forEach(track => newMediaStream.addTrack(track));
+
+            // Thêm các video tracks từ processedStream vào newMediaStream
+            processedStream.getVideoTracks().forEach(track => newMediaStream.addTrack(track));
+
+            mediaStream = newMediaStream;
+        }
+        processFrame();
+        
         // send joining notification
 
         // let localVideo = document.createElement("video")
@@ -589,19 +668,3 @@ socket.on("receiveAnswer", (answer) => {
 socket.on("receiveCandidate", (candidate) => {
     RTC.addIceCandidate(candidate)
 })
-
-
-
-
-
-
-
-
-
-
-
-
-/* 
-    1. RTC connection initialization after media stream ready!
-    2. add media tracks to RTC
-*/
