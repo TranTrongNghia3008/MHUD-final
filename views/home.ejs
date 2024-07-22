@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <title>Title</title>
+        <!-- Required meta tags -->
+        <meta charset="utf-8" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1, shrink-to-fit=no"
+        />
+
+        <!-- Bootstrap CSS v5.2.1 -->
+        <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+            rel="stylesheet"
+            integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
+            crossorigin="anonymous"
+        />
+        <style>
+            #videoContainer {
+                border: 2px solid #000;
+            }
+    
+            #videoElement {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+    
+            #controls {
+                flex-basis: 50%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 1rem;
+                margin-top: 10%;
+            }
+    
+            #controls input, #controls button {
+                width: 100%;
+                max-width: 300px;
+            }
+        </style>
+    </head>
+
+    <body>
+        <header>
+            <nav class="navbar navbar-expand-sm navbar-light bg-light d-flex px-3 justify-content-between">
+            <div class="navbar-brand ms-5" >
+                <img src="img/logo.webp" alt="" class="logo" style="width: 3rem; height: 3rem;"/>
+                <a class="navbar-brand mb-0 h1">Kallie: Secure Video Web Call</a>
+            </div>
+            </nav>
+        </header>
+        <main>
+            <div class="row content-login mt-5">   
+                <div class="col-7">
+                    <div id="videoContainer" class="w-75 mx-auto">
+                        <video id="videoElement" autoplay></video>
+                    </div>
+                </div>
+                <div class="col">
+                    <div id="controls" class="mx-auto">
+                        <button id="createRoomBtn" class="btn btn-primary">Create Room</button>
+                        <input type="text" id="roomIdInput" class="form-control" placeholder="Enter Room ID">
+                        <button id="joinRoomBtn" class="btn btn-success">Join Room</button>
+                    </div>
+                </div>
+            </div>
+            
+            
+        
+            <script>
+                async function startVideo() {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                        const videoElement = document.getElementById('videoElement');
+                        videoElement.srcObject = stream;
+                    } catch (error) {
+                        console.error('Error accessing the camera', error);
+                    }
+                }
+        
+                document.addEventListener('DOMContentLoaded', startVideo);
+        
+                document.getElementById('createRoomBtn').addEventListener('click', function() {
+                    // Implement create room functionality here
+                    alert('Create Room button clicked!');
+                });
+        
+                document.getElementById('joinRoomBtn').addEventListener('click', function() {
+                    const roomId = document.getElementById('roomIdInput').value;
+                    if (roomId) {
+                        // Implement join room functionality here
+                        alert(`Joining room with ID: ${roomId}`);
+                    } else {
+                        alert('Please enter a Room ID');
+                    }
+                });
+            </script>
+        </main>
+        <footer>
+            <!-- place footer here -->
+        </footer>
+        <!-- Bootstrap JavaScript Libraries -->
+        <script
+            src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
+            integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r"
+            crossorigin="anonymous"
+        ></script>
+
+        <script
+            src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js"
+            integrity="sha384-BBtl+eGJRgqQAUMxJ7pMwbEyER4l1g+O15P+16Ep7Q9Q+zqX6gSbd85u4mG4QzX+"
+            crossorigin="anonymous"
+        ></script>
+    </body>
+</html>

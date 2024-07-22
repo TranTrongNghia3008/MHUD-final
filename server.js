@@ -1,10 +1,12 @@
 const express = require('express');
+const fs = require('fs');
 const http = require('http');
 const {
     v4: uuid
 } = require('uuid');
 const socketIO = require('socket.io')
 const multer = require('multer');
+const bodyParser = require('body-parser');
 const path = require('path');
 const app = express();
 const expressHTTPServer = http.createServer(app);
@@ -20,22 +22,72 @@ const storage = multer.diskStorage({
     }
 });
 const upload = multer({ storage: storage });
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use(express.static('public'));
 app.set('view engine', 'ejs');
 
 app.get('/', (req, res) => {
-    res.redirect(`/${uuid()}`);
+    res.redirect(`room/${uuid()}`);
 });
 
-app.get("/:roomId", (req, res) => {
+app.get("/room/:roomId", (req, res) => {
     const roomId = req.params.roomId;
     res.render('index', { roomId });
+});
+
+app.get('/register', (req, res) => {
+    res.render('register');
+});
+
+app.post('/register', (req, res) => {
+    const { name, email, password, faceData } = req.body;
+
+    console.log(name, email, password)
+
+    res.status(201).json({ message: 'successfully'});
+
+});
+
+app.get('/login', (req, res) => {
+    res.render('login');
+});
+
+app.get('/home', (req, res) => {
+    res.render('home');
 });
 
 app.post('/upload', upload.single('file'), (req, res) => {
     const fileUrl = `/uploads/${req.file.filename}`;
     res.send({ fileUrl, filename: req.file.originalname });
+});
+
+// API để lưu ảnh
+app.post('/upload-image', (req, res) => {
+    const { imageData } = req.body;
+    const base64Data = imageData.replace(/^data:image\/png;base64,/, '');
+    const imgName = `face_${Date.now()}.png`;
+
+    const imgPath = path.join(__dirname, 'public', 'img', imgName);
+    console.log(imgPath)
+
+    fs.writeFile(imgPath, base64Data, 'base64', (err) => {
+        if (err) {
+            return res.status(500).send('Error saving image');
+        }
+        res.send('Image saved successfully');
+    });
+});
+
+
+app.post('/face-authentication', (req, res) => {
+    const { email, password, imageData } = req.body;
+
+    console.log(email, password)
+
+    res.status(201).json({ message: 'successfully'});
+
 });
 
 // Đường dẫn để tải xuống file

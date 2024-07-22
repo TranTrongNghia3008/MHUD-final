@@ -1,4 +1,4 @@
-import { stringToBinary, encryptBinaryData, embedMessageInFrame, extractMessageFromFrame } from './steganography.js';
+import { stringToBinary, encryptBinaryData, embedMessageInFrame, extractMessageFromFrame } from '/steganography.js';
 
 const videoGrid = document.getElementById("video_grid");
 const muteBtn = document.getElementById("muteBtn")
@@ -134,12 +134,13 @@ async function getMedia(cameraId, micId) {
     try {
         // Kiểm tra và yêu cầu quyền truy cập microphone        // await faceapi.loadMtcnnModel('/weights')
         // await faceapi.loadFaceRecognitionModel('/weights')
+
         mediaStream = await window.navigator.mediaDevices.getUserMedia(cameraId || micId ? cameraId ? preferredCameraConstraints : preferredMicConstraints : initialConstraits)
         // Tạo AudioContext
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
         // Thêm module AudioWorkletProcessor
-        await audioContext.audioWorklet.addModule('audio-worklet-processor.js');
+        await audioContext.audioWorklet.addModule('/audio-worklet-processor.js');
 
         // Tạo MediaStreamSource
         mediaStreamSource = audioContext.createMediaStreamSource(mediaStream);
@@ -371,8 +372,8 @@ async function calculateFilterParameters(landmarks) {
 
 // display media
 async function displayMedia() {
-    await faceapi.loadFaceLandmarkModel('./lib/weights')
-    await faceapi.nets.ssdMobilenetv1.loadFromUri('./lib/weights');
+    await faceapi.loadFaceLandmarkModel('/lib/weights')
+    await faceapi.nets.ssdMobilenetv1.loadFromUri('/lib/weights');
     const video = document.createElement('video');
     const canvas = document.createElement('canvas');
     canvas.width = video.width;  // Set to desired width
