@@ -451,7 +451,6 @@ async function displayMedia() {
     })
     mediaStream = newMediaStream;
     videoGrid.appendChild(canvas)
-
 }
 
 sendMessageBtn.addEventListener('click', async () => {
