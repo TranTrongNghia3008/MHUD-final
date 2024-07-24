@@ -1,6 +1,8 @@
 let faceInCircleTime = 0;
 const requiredTime = 3000; // 3 seconds
 let intervalId = null;
+let faceURL = '';
+let publicId = null;
 
 async function startVideo() {
     document.querySelector('.instructions').textContent = 'Please position your face within the circle in 3s';
@@ -83,6 +85,26 @@ async function captureImage(video) {
     const email = document.getElementById('fEmail').value;
     const password = document.getElementById('fPassword').value;
 
+    document.querySelector('.instructions').textContent = 'Please wait ...';
+    document.querySelector('.instructions').style.color = '#fff';
+
+    try {
+        const response = await fetch('/upload-image', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ imageData })
+        });
+        const result = await response.json();
+        console.log('Uploaded Image URL:', result.url);
+        faceURL = result.url;
+        publicId = result.publicId;
+
+    } catch (error) {
+        console.error('Error uploading image', error);
+    }
+
 
     // Handle the captured image (e.g., send to server or display to user)
     try {
@@ -91,10 +113,11 @@ async function captureImage(video) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ email, password, imageData })
+            body: JSON.stringify({ email, password, faceURL, publicId })
         });
 
         if (response.ok) {
+
             document.querySelector('.instructions').textContent = 'Face authentication successful!';
             document.querySelector('.instructions').style.color = '#4CAF50';
             setTimeout(() => {
@@ -103,6 +126,7 @@ async function captureImage(video) {
         } else {
             document.querySelector('.instructions').textContent = 'Authentication failed.';
             document.querySelector('.instructions').style.color = '#f44336';
+            startVideo(); 
         }
 
     } catch (error) {
@@ -123,8 +147,31 @@ document.addEventListener('DOMContentLoaded', () => {
         if (email && password) {
             event.preventDefault();
 
-            // Start video capture
-            await startVideo();
+            try {
+                const response = await fetch('/check-email-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+        
+        
+                if (!response.ok) {                
+                    const errorData = await response.json();
+                    document.querySelector('.error-msg').textContent = errorData.message;
+                } else {
+                    document.querySelector('.error-msg').textContent = '';
+                    // Start video capture
+                    await startVideo();
+                }
+                
+        
+            } catch (error) {
+                console.error('Error check email, password', error);
+            }
+
+            
         }
         
         

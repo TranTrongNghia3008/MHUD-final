@@ -69,6 +69,9 @@
                 text-align: center;
                 text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
             }
+            .alert:empty {
+                display: none;
+            }
         </style>
     </head>
 
@@ -120,8 +123,13 @@
                                     required
                                     />
                                     <div class="invalid-feedback">Please enter Password.</div>
-                                </div>
-            
+                                </div>                         
+                                <% if (error_msg) { %>
+                                    <div class="alert alert-danger error-msg"><%= error_msg%></div>                    
+                                <% } %>
+                                <% if (success_msg) { %>
+                                    <div class="alert alert-success"><%= success_msg%></div>                    
+                                <% } %>
                                 
                             </div>
                             <div class="footer text-center">

@@ -68,6 +68,10 @@
                 text-align: center;
                 text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
             }
+
+            .alert:empty {
+                display: none;
+            }
         </style>
     </head>
 
@@ -104,7 +108,7 @@
 
                             </div>
                             <div class="body mb-3">
-                                <div class="row mb-3">
+                                <div class="mb-3">
                                     <label for="fYourName" class="form-label"
                                     >Your Name <span class="text-danger">*</span></label
                                     >
@@ -152,6 +156,12 @@
                                 </div>
 
                             </div>
+                            <% if (error_msg) { %>
+                                <div class="alert alert-danger"><%= error_msg%></div>                    
+                            <% } %>
+                            <% if (success_msg) { %>
+                                <div class="alert alert-success"><%= success_msg%></div>                    
+                            <% } %>
                             <div class="footer text-center">
                                 <button type="submit" class="btn btn-danger w-100 mb-2" id="registerButton">Create free account</button>
                                 <p><a href="#" class="fs-5 text-decoration-underline">Terms of Use</a> and <a href="#" class="fs-5 text-decoration-underline">Privacy Policy</a></p>

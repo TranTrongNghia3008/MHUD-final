@@ -1,7 +1,7 @@
 let faceInCircleTime = 0;
 const requiredTime = 3000; // 3 seconds
 let intervalId = null;
-let faceData = null;
+let faceURL = '';
 
 async function startVideo() {
     try {
@@ -79,7 +79,6 @@ async function captureImage(video) {
     const context = canvas.getContext('2d');
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     const imageData = canvas.toDataURL('image/png');
-    faceData = imageData;
 
     // Hiển thị ảnh lên canvas overlay
     const imageCanvas = document.getElementById('imageCanvas');
@@ -92,8 +91,7 @@ async function captureImage(video) {
     };
     img.src = imageData;
 
-    document.querySelector('.instructions').textContent = 'Face recognition successful!';
-    document.querySelector('.instructions').style.color = '#4CAF50'; 
+    document.querySelector('.instructions').textContent = 'Please wait ...';
 
     try {
         const response = await fetch('/upload-image', {
@@ -103,6 +101,11 @@ async function captureImage(video) {
             },
             body: JSON.stringify({ imageData })
         });
+        const result = await response.json();
+        console.log('Uploaded Image URL:', result.url);
+        faceURL = result.url;
+        document.querySelector('.instructions').textContent = 'Face recognition successful!';
+        document.querySelector('.instructions').style.color = '#4CAF50'; 
 
     } catch (error) {
         console.error('Error uploading image', error);
@@ -125,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const email = document.getElementById('fEmail').value;
         const password = document.getElementById('fPassword').value;
 
-        if (name && email && password && faceData) {
+        if (name && email && password && faceURL) {
             event.preventDefault();
             try {
                 const response = await fetch('/register', {
@@ -133,13 +136,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ name, email, password, faceData })
+                    body: JSON.stringify({ name, email, password, faceURL})
                 });
+
+                // const result = await response.json();
 
                 if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(errorData.message);
+                    window.location.href = '/register';
+                    throw new Error(errorData.message);              
                 }
+                                    
+
 
                 window.location.href = '/login';
     
@@ -148,9 +156,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        else if (!faceData) {
+        else if (!faceURL) {
             event.preventDefault();
-            document.querySelector('.instructions').textContent = 'Please position your face within the circle in 3s';
             document.querySelector('.instructions').style.color = '#dc3545'; 
         }
 
