@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
     <link
-            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-            rel="stylesheet"
-            integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
-            crossorigin="anonymous"
-        />
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
+      crossorigin="anonymous"
+    />
     <style>
       body {
         height: 100vh;
@@ -31,33 +31,33 @@
         height: 100vh;
         overflow: scroll;
       }
-      video, canvas {
+      video,
+      canvas {
         width: 45%;
         height: 45vh;
         object-fit: cover;
       }
-
-      
     </style>
 
     <script>
-        const roomId = "<%= roomId %>";
+      const roomId = "<%= roomId %>";
     </script>
 
     <link
-        rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css"
     />
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="/lib/face-api.js"></script>
     <script src="/faceDetectionControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
 
     <!-- <script src="/lib/face-api.min.js"></script> -->
-</head>
-<body class="d-flex">
+  </head>
+  <body class="d-flex">
     <div id="video_grid">
       <!-- <div id="imageContainer">
         <img id="receivedImage" src="" alt="Received Image">
@@ -70,43 +70,86 @@
       <button id="changeVoiceBtn" class="btn btn-primary">Change Voice</button>
       <p style="font-weight: bold" class="mb-1 mt-2">Change Camera</p>
       <select
-          id="selectCam"
-          style="width: 300px; margin: auto"
-          class="form-select"
-          aria-label="Default select example"
+        id="selectCam"
+        style="width: 300px; margin: auto"
+        class="form-select"
+        aria-label="Default select example"
       ></select>
       <p style="font-weight: bold" class="mb-1 mt-2">Change Mic</p>
       <select
-          id="selectMic"
-          style="width: 300px; margin: auto"
-          class="form-select"
-          aria-label="Default select example"
+        id="selectMic"
+        style="width: 300px; margin: auto"
+        class="form-select"
+        aria-label="Default select example"
       ></select>
       <p style="font-weight: bold" class="mb-1 mt-2">Share Your Screen</p>
-      <button id="screenShare" class="btn mt-2 btn-secondary">Share your Screen</button>
+      <button id="screenShare" class="btn mt-2 btn-secondary">
+        Share your Screen
+      </button>
       <p style="font-weight: bold" class="mb-1 mt-2">Choose Filter</p>
       <div class="dropdown">
-        <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+        <button
+          class="btn btn-secondary dropdown-toggle"
+          type="button"
+          id="dropdownMenuButton1"
+          data-bs-toggle="dropdown"
+          aria-expanded="false"
+        >
           Choose a filter
         </button>
         <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-          <li><a class="dropdown-item" href="#" data-src=""><img src="img/no_filter.png" alt="No filter" style="width: 1.5rem; height: 1.5rem; margin-right: 0.5rem;">No filter</a></li>
-          <li><a class="dropdown-item" href="#" data-src="img/glasses3.png"><img src="img/glasses3.png" alt="Glasses" style="width: 2rem; height: 2rem">Glasses</a></li>
-          <li><a class="dropdown-item" href="#" data-src="img/hat.png"><img src="img/hat.png" alt="Hat" style="width: 2rem; height: 2rem">Hat</a></li>
-          <li><a class="dropdown-item" href="#" data-src="img/mask.png"><img src="img/mask.png" alt="Hat" style="width: 2rem; height: 2rem">Mask</a></li>
-
+          <li>
+            <a class="dropdown-item" href="#" data-src=""
+              ><img
+                src="/img/no_filter.png"
+                alt="No filter"
+                style="width: 1.5rem; height: 1.5rem; margin-right: 0.5rem"
+              />No filter</a
+            >
+          </li>
+          <li>
+            <a class="dropdown-item" href="#" data-src="img/glasses3.png"
+              ><img
+                src="/img/glasses3.png"
+                alt="Glasses"
+                style="width: 2rem; height: 2rem"
+              />Glasses</a
+            >
+          </li>
+          <li>
+            <a class="dropdown-item" href="#" data-src="img/hat.png"
+              ><img
+                src="/img/hat.png"
+                alt="Hat"
+                style="width: 2rem; height: 2rem"
+              />Hat</a
+            >
+          </li>
+          <li>
+            <a class="dropdown-item" href="#" data-src="img/mask.png"
+              ><img
+                src="/img/mask.png"
+                alt="Hat"
+                style="width: 2rem; height: 2rem"
+              />Mask</a
+            >
+          </li>
         </ul>
       </div>
       <input
-          type="text"
-          id="messageInput"
-          placeholder="Enter message to embed"
+        type="text"
+        id="messageInput"
+        placeholder="Enter message to embed"
       />
       <button id="sendMessageBtn" class="btn btn-primary">Send Message</button>
       <p style="font-weight: bold" class="mb-1 mt-2">Upload File</p>
       <form id="uploadForm" enctype="multipart/form-data">
-        <input type="file" name="file" id="fileInput" /> <!-- Đặt id="fileInput" để dễ dàng chọn bằng JavaScript -->
-        <button type="button" id="uploadBtn" class="btn btn-primary mt-2">Upload File</button> <!-- Đổi type="submit" thành type="button" -->
+        <input type="file" name="file" id="fileInput" />
+        <!-- Đặt id="fileInput" để dễ dàng chọn bằng JavaScript -->
+        <button type="button" id="uploadBtn" class="btn btn-primary mt-2">
+          Upload File
+        </button>
+        <!-- Đổi type="submit" thành type="button" -->
       </form>
       <div id="uploadedFiles">
         <!-- Files will be listed here -->
@@ -116,39 +159,40 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>
     <script type="module" src="/app.js"></script>
     <script type="module" src="/steganography.js"></script>
+    <script type="module" src="/splitFile.js"></script>
 
     <script>
-        $(document).ready(function () {
-            $('#uploadForm').on('submit', function (e) {
-                e.preventDefault();
-                var formData = new FormData(this);
-                $.ajax({
-                    url: '/upload',
-                    type: 'POST',
-                    data: formData,
-                    contentType: false,
-                    processData: false,
-                    success: function (response) {
-                        alert('File uploaded successfully!');
-                        // window.location.href = "/" + roomId; // Redirect back to the original page
-                    },
-                    error: function (jqXHR, textStatus, errorThrown) {
-                        alert('File upload failed!');
-                    }
-                });
-            });
+      $(document).ready(function () {
+        $("#uploadForm").on("submit", function (e) {
+          e.preventDefault();
+          var formData = new FormData(this);
+          $.ajax({
+            url: "/upload",
+            type: "POST",
+            data: formData,
+            contentType: false,
+            processData: false,
+            success: function (response) {
+              alert("File uploaded successfully!");
+              // window.location.href = "/" + roomId; // Redirect back to the original page
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+              alert("File upload failed!");
+            },
+          });
         });
+      });
     </script>
     <script
-        src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
-        integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r"
-        crossorigin="anonymous"
+      src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
+      integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r"
+      crossorigin="anonymous"
     ></script>
 
     <script
-        src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js"
-        integrity="sha384-BBtl+eGJRgqQAUMxJ7pMwbEyER4l1g+O15P+16Ep7Q9Q+zqX6gSbd85u4mG4QzX+"
-        crossorigin="anonymous"
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js"
+      integrity="sha384-BBtl+eGJRgqQAUMxJ7pMwbEyER4l1g+O15P+16Ep7Q9Q+zqX6gSbd85u4mG4QzX+"
+      crossorigin="anonymous"
     ></script>
-</body>
+  </body>
 </html>
