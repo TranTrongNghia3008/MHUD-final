@@ -81,8 +81,8 @@ io.on('connection', (socket) => {
         socket.to(roomId).emit("receiveContext", newContext);
     });
 
-    socket.on("fileUploaded", (data, roomId) => {
-        socket.to(roomId).emit("renderFileUploaded", data);
+    socket.on("sendFileContext", (newContext, roomId) => {
+        socket.to(roomId).emit("receiveFileContext", newContext);
     });
 
     console.log("Socket connected!");

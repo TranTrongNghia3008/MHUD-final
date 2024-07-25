@@ -102,4 +102,35 @@ export function extractMessageFromFrame(context, canvas, spacing = 5) {
     return message;
 }
 
+export function extractSegmentFromFrame(context, canvas, spacing = 5) {
+    const frame = context.getImageData(0, 0, canvas.width, canvas.height);
+    const data = frame.data;
+    // console.log(data.length);
+    // console.log(data);
+
+    // Check the flag to indicate hidden message
+    if (data[0] !== 107) {
+        console.log("No hidden message found.");
+        return null;
+    }
+
+    let dataIndex = spacing;
+
+    // Extract the length of the binary message
+    const lengthInfo = extractBinaryString(data, dataIndex, 32, spacing);
+    const messageLengthBinary = lengthInfo.binaryString;
+    dataIndex = lengthInfo.dataIndex;
+
+    const messageLength = parseInt(messageLengthBinary, 2);
+
+    // Extract the binary message
+    const messageInfo = extractBinaryString(data, dataIndex, messageLength, spacing);
+    const binaryMessage = messageInfo.binaryString;
+
+    const message = binaryToString(binaryMessage);
+    // console.log(message);
+
+    return message;
+}
+
 // export default { embedMessageInFrame, extractMessageFromFrame };

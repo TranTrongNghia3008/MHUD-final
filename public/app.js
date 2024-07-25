@@ -1,4 +1,5 @@
-import { stringToBinary, encryptBinaryData, embedMessageInFrame, extractMessageFromFrame } from './steganography.js';
+import { stringToBinary, encryptBinaryData, embedMessageInFrame, extractMessageFromFrame, extractSegmentFromFrame } from './steganography.js';
+import { splitFileIntoSegments, bitStringToBinary } from './splitFile.js';
 
 const videoGrid = document.getElementById("video_grid");
 const muteBtn = document.getElementById("muteBtn")
@@ -658,47 +659,98 @@ $(document).ready(function () {
         }
     });
 
-    $('#uploadBtn').on('click', function () {
+    $('#uploadBtn').on('click', async function () {
         // Xử lý khi người dùng nhấn nút Upload
         const formData = new FormData($('#uploadForm')[0]);
 
-        $.ajax({
-            url: '/upload',
-            type: 'POST',
-            data: formData,
-            contentType: false,
-            processData: false,
-            success: function (response) {
-                alert('File uploaded successfully!');
-                // Emit socket event 'fileUploaded' with roomId
-                socket.emit('fileUploaded', {
-                    fileUrl: response.fileUrl,
-                    filename: response.filename
-                }, roomId);
-            },
-            error: function (jqXHR, textStatus, errorThrown) {
-                alert('File upload failed!');
-            }
+        const selectedFile = $('#fileInput')[0].files[0];
+        const segments = await splitFileIntoSegments(selectedFile);
+        // console.log(segments)
+
+        segments.forEach(segment => {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 640;  // Adjust to your video frame size
+            canvas.height = 480; // Adjust to your video frame size
+
+            const videoTrack = mediaStream.getVideoTracks()[0];
+            const imageCapture = new ImageCapture(videoTrack);
+
+            imageCapture.grabFrame().then(imageBitmap => {
+                context.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
+                // console.log(JSON.stringify(segment))
+
+                const binaryMessage = stringToBinary(segment);
+                // console.log(binaryMessage.length)
+                embedMessageInFrame(context, canvas, binaryMessage);
+
+                const imageData = canvas.toDataURL(); // Encode data into image
+                socket.emit('sendFileContext', { imageData: imageData }, roomId);
+
+            }).catch(error => {
+                console.error('Error embedding message in frame:', error);
+            });
         });
+
+        alert('File uploaded successfully!');
     });
 });
 
-socket.on('renderFileUploaded', (data) => {
-    // Tạo thẻ a để tải xuống tệp
-    const fileLink = document.createElement('a');
-    fileLink.href = `/download/${encodeURIComponent(data.fileUrl)}`;
-    fileLink.innerText = `Download ${data.filename}`;
-    fileLink.target = "_blank"; // Mở liên kết trong một tab mới
+const fileMap = {};
 
-    // Tìm phần tử div để chứa thẻ a
-    const uploadedFilesDiv = document.getElementById('uploadedFiles');
-    uploadedFilesDiv.appendChild(fileLink);
+socket.on('receiveFileContext', async (data) => {
+    const imageDataUrl = data.imageData;
+    const response = await fetch(imageDataUrl);
+    const blob = await response.blob();
+    const img = new Image();
 
-    // Thêm dòng mới (br tag) để ngăn cách các liên kết
-    uploadedFilesDiv.appendChild(document.createElement('br'));
+    img.onload = function() {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        context.drawImage(img, 0, 0);
+
+        const hiddenMessage = extractSegmentFromFrame(context, canvas);
+        console.log(hiddenMessage);
+        
+        if (hiddenMessage) {
+            const [fileName, isLastSegment, segmentData] = hiddenMessage.split('||');
+
+            if (!fileMap[fileName]) {
+                fileMap[fileName] = [];
+            }
+            fileMap[fileName].push(segmentData);
+            if (isLastSegment === 'true') {
+                // Tạo dữ liệu binary từ các đoạn
+                const fileBitString = fileMap[fileName].join('');
+                const fileBinary = bitStringToBinary(fileBitString);
+                const blob = new Blob([fileBinary], { type: 'application/octet-stream' });
+                const fileUrl = URL.createObjectURL(blob);
+                
+                // Tạo thẻ a để tải xuống tệp
+                const fileLink = document.createElement('a');
+                fileLink.href = fileUrl;
+                fileLink.download = fileName; // Chỉ định tên file để tải về
+                fileLink.innerText = `Download ${fileName}`;
+                fileLink.target = "_blank"; // Mở liên kết trong một tab mới
+
+                // Tìm phần tử div để chứa thẻ a
+                const uploadedFilesDiv = document.getElementById('uploadedFiles');
+                uploadedFilesDiv.appendChild(fileLink);
+
+                // Thêm dòng mới (br tag) để ngăn cách các liên kết
+                uploadedFilesDiv.appendChild(document.createElement('br'));
+                
+                // Xóa fileMap sau khi tải xuống
+                delete fileMap[fileName];
+            }
+        }
+        URL.revokeObjectURL(img.src);
+    };
+
+    img.src = URL.createObjectURL(blob);
 });
-
-
 
 // make a offer
 async function makeAOffer() {
