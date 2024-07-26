@@ -89,19 +89,6 @@ cameraoff.addEventListener('click', () => {
     }
 })
 
-const mtcnnForwardParams = {
-    // limiting the search space to larger faces for webcam detection
-    minFaceSize: 200
-}
-
-//positions for sunglasess
-var results = []
-
-//utility functions
-async function getFace(localVideo, options){
-    results = await faceapi.mtcnn(localVideo, options)
-}
-
 
 // getting the medias
 // hàm getMedia() được gọi để yêu cầu quyền truy cập vào camera và microphone của thiết bị
@@ -173,16 +160,79 @@ getMedia()
 
 
 
+let originalVideoTrack;
+let originalAudioTrack;
+
 async function getScreenMedia() {
     try {
-        mediaStream = await navigator.mediaDevices.getDisplayMedia({
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({
             audio: true,
             video: true,
         });
-        displayMedia()
+
+        // Lưu lại các track ban đầu
+        if (!originalVideoTrack) {
+            originalVideoTrack = mediaStream.getVideoTracks()[0];
+        }
+        if (!originalAudioTrack) {
+            originalAudioTrack = mediaStream.getAudioTracks()[0];
+        }
+
+        // Thêm các track từ screenStream vào RTC
+        const videoTrack = screenStream.getVideoTracks()[0];
+        const audioTrack = screenStream.getAudioTracks()[0];
+
+        if (RTC) {
+            // Thay thế các track cũ bằng các track mới từ screen share
+            RTC.getSenders().forEach(sender => {
+                if (sender.track.kind === 'video' && videoTrack) {
+                    sender.replaceTrack(videoTrack);
+                }
+                if (sender.track.kind === 'audio' && audioTrack) {
+                    sender.replaceTrack(audioTrack);
+                }
+            });
+        }
+
+        mediaStream = screenStream;
+        displayScreenMedia();
+
+        // Nghe sự kiện khi kết thúc chia sẻ màn hình
+        screenStream.getVideoTracks()[0].addEventListener('ended', () => {
+            stopScreenShare();
+        });
     } catch (error) {
         console.log(error);
     }
+}
+
+function stopScreenShare() {
+    // Thay thế lại các track ban đầu vào RTC
+    if (RTC) {
+        RTC.getSenders().forEach(sender => {
+            if (sender.track.kind === 'video' && originalVideoTrack) {
+                sender.replaceTrack(originalVideoTrack);
+            }
+            if (sender.track.kind === 'audio' && originalAudioTrack) {
+                sender.replaceTrack(originalAudioTrack);
+            }
+        });
+    }
+    // Xóa thẻ video có id="shareScreen"
+    const shareScreenVideo = document.getElementById('shareScreen');
+    if (shareScreenVideo) {
+        videoGrid.removeChild(shareScreenVideo);
+    }
+}
+
+function displayScreenMedia() {
+    const video = document.createElement('video');
+    video.id = "shareScreen"; 
+    video.srcObject = mediaStream;
+    video.addEventListener('loadedmetadata', () => {
+        video.play();
+    });
+    videoGrid.appendChild(video);
 }
 
 
@@ -635,7 +685,19 @@ socket.on('receiveContext', async (data) => {
         const hiddenMessage = extractMessageFromFrame(context, canvas);
         if (hiddenMessage) {
             console.log('Hidden message received:', hiddenMessage);
-            // Xử lý hoặc hiển thị dữ liệu ở đây
+            const listMessage = document.getElementById('receivedMessage');
+            // Nếu listMessage không có phần tử con
+            if (listMessage.children.length === 0) {
+                listMessage.classList.add('border', 'px-2', 'mb-1');
+                const headerMessage = document.createElement('p');
+                headerMessage.textContent = 'Message received';
+                headerMessage.style.fontWeight = 'bold';
+                headerMessage.classList.add('mb-1', 'mt-2');
+                listMessage.appendChild(headerMessage);
+            }
+            const newMessage = document.createElement('p');
+            newMessage.textContent = hiddenMessage;
+            listMessage.appendChild(newMessage);
         } else {
             console.log('No hidden message found.');
         }
@@ -693,6 +755,14 @@ socket.on('renderFileUploaded', (data) => {
 
     // Tìm phần tử div để chứa thẻ a
     const uploadedFilesDiv = document.getElementById('uploadedFiles');
+    if (uploadedFilesDiv.children.length === 0) {
+        uploadedFilesDiv.classList.add('border', 'px-2', 'mb-1');
+        const headerMessage = document.createElement('p');
+        headerMessage.textContent = 'File received';
+        headerMessage.style.fontWeight = 'bold';
+        headerMessage.classList.add('mb-1', 'mt-2');
+        listMessage.appendChild(headerMessage);
+    }
     uploadedFilesDiv.appendChild(fileLink);
 
     // Thêm dòng mới (br tag) để ngăn cách các liên kết

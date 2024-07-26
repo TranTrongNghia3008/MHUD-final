@@ -87,14 +87,13 @@
         
                 document.getElementById('createRoomBtn').addEventListener('click', function() {
                     // Implement create room functionality here
-                    alert('Create Room button clicked!');
+                    window.location.href = '/room';
                 });
         
                 document.getElementById('joinRoomBtn').addEventListener('click', function() {
                     const roomId = document.getElementById('roomIdInput').value;
                     if (roomId) {
-                        // Implement join room functionality here
-                        alert(`Joining room with ID: ${roomId}`);
+                        window.location.href = `/room/${roomId}`;
                     } else {
                         alert('Please enter a Room ID');
                     }
