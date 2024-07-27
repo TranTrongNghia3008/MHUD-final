@@ -21,6 +21,7 @@ const passport = require('./passport');
 const userModel = require('./models/userModel');
 const { ensureAuthenticated } = require('./middlewares/auth');
 const connectDB = require('./connectDB');
+const { createGenesisBlock, createNewBlock, getLatestBlock, saveBlockToDB } = require('./blockchain');
 connectDB();
 
 // Configure multer
@@ -100,6 +101,13 @@ app.post('/register', async (req, res) => {
     try {
         // Lưu người dùng mới vào cơ sở dữ liệu
         await newUser.save();
+
+        // Thêm block vào blockchain
+        const latestBlock = await getLatestBlock();
+        const previousBlock = latestBlock || createGenesisBlock();
+        const newBlock = createNewBlock(previousBlock, { event: 'register', user: newUser });
+        await saveBlockToDB(newBlock);
+
         res.status(201).json({ message: 'The user has been created successfully.' });
     } catch (error) {
         req.flash('error_msg', 'Email already exists');
