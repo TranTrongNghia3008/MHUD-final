@@ -64,6 +64,10 @@ app.use(express.static('public'));
 app.set('view engine', 'ejs');
 
 app.get('/', (req, res) => {
+    res.redirect('/login');
+});
+
+app.get('/room', (req, res) => {
     res.redirect(`room/${uuid()}`);
 });
 
@@ -165,12 +169,12 @@ app.post('/upload-image', async (req, res) => {
         // Lấy thông tin người dùng từ cơ sở dữ liệu dựa trên email và password
         const user = await userModel.findOne({ Email: email });
         if (!user) {
-            return res.status(401).json({ message: 'Invalid email.' });
+            return res.status(401).json({ message: 'Password or Email is incorrect.' });
         }
 
         const isMatch = await bcrypt.compare(password, user.Password);
         if (!isMatch) {
-            return res.status(401).json({ message: 'Password incorrect.' });
+            return res.status(401).json({ message: 'Password or Email is incorrect.' });
         }
 
         res.json({ message: 'Valid Email and Password' });
