@@ -90,6 +90,83 @@ cameraoff.addEventListener('click', () => {
     }
 })
 
+async function captureAndCheckLiveness() {
+    const video = document.createElement('video');
+    video.srcObject = mediaStream;
+    await new Promise(resolve => video.onloadedmetadata = resolve);
+
+    video.play();
+
+    const captureDuration = 3000; // Thời gian chụp ảnh (3 giây)
+    const interval = 500; // Thời gian giữa các lần chụp (500ms)
+    const images = [];
+
+    // Hàm chuyển đổi DataURL thành Blob
+    function dataURLToBlob(dataURL) {
+        const [header, data] = dataURL.split(',');
+        const mime = header.match(/:(.*?);/)[1];
+        const binary = atob(data);
+        const array = [];
+        for (let i = 0; i < binary.length; i++) {
+            array.push(binary.charCodeAt(i));
+        }
+        return new Blob([new Uint8Array(array)], { type: mime });
+    }
+
+    // Hàm chụp ảnh và thêm vào mảng
+    function captureImage() {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = canvas.toDataURL('image/jpeg');
+        images.push(imageData);
+    }
+
+    // Chụp ảnh liên tục trong khoảng thời gian 3 giây
+    const captureInterval = setInterval(captureImage, interval);
+
+    // Dừng chụp ảnh sau 3 giây
+    setTimeout(async () => {
+        clearInterval(captureInterval);
+
+        // Chuyển đổi tất cả ảnh thành blob
+        const formData = new FormData();
+        const blobs = images.map(imageData => dataURLToBlob(imageData));
+
+        // Đợi cho tất cả các Blob được tạo ra
+        await Promise.all(blobs.map((blob, index) => {
+            formData.append('files', blob, `image_${index}.jpg`);
+        }));
+
+        // Gửi ảnh lên server để kiểm tra liveness
+        try {
+            const response = await fetch('http://localhost:5000/check_liveness', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+
+            // Hiển thị cảnh báo với kết quả
+            alert(`Liveness check result: ${result.result}`);
+
+            if (result.result === 'Success') {
+                console.log('Liveness check passed. Proceeding...');
+                // Tiếp tục thực hiện các hành động khác
+            } else {
+                console.log('Liveness check failed. Redirecting to login...');
+                // Chuyển hướng về trang login
+                window.location.href = '/login';
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred while checking liveness.');
+        }
+    }, captureDuration);
+}
+
+
 
 // getting the medias
 // hàm getMedia() được gọi để yêu cầu quyền truy cập vào camera và microphone của thiết bị
@@ -140,7 +217,8 @@ async function getMedia(cameraId, micId) {
 
         // displayMedia()
         await displayMedia()
-        
+        // Gọi kiểm tra liveness trước khi tiếp tục
+        await captureAndCheckLiveness();
         
         getAllCameras()
         getAllMics()
