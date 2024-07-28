@@ -884,7 +884,7 @@ socket.on('receiveFileContext', async (data) => {
         headerMessage.textContent = 'File received';
         headerMessage.style.fontWeight = 'bold';
         headerMessage.classList.add('mb-1', 'mt-2');
-        listMessage.appendChild(headerMessage);
+        uploadedFilesDiv.appendChild(headerMessage);
     }
     uploadedFilesDiv.appendChild(fileLink);
 
