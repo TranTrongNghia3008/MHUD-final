@@ -9,8 +9,8 @@ async function startVideo() {
         const videoElement = document.getElementById('videoElement');
         videoElement.srcObject = stream;
         await faceapi.nets.tinyFaceDetector.loadFromUri('/lib/weights');
-        await faceapi.nets.faceLandmark68Net.loadFromUri('/lib/weights');
-        await faceapi.nets.faceRecognitionNet.loadFromUri('/lib/weights');
+        // await faceapi.nets.faceLandmark68Net.loadFromUri('/lib/weights');
+        // await faceapi.nets.faceRecognitionNet.loadFromUri('/lib/weights');
         detectFace();
     } catch (error) {
         console.error('Error accessing the camera', error);
@@ -50,6 +50,15 @@ async function detectFace() {
         if (distance < circleRadius && width < 350 && height < 350) {
             if (!intervalId) {
                 intervalId = setInterval(() => {
+                    if (faceInCircleTime === 0) {
+                        document.querySelector('.instructions').textContent = 'Please position your face within the circle in 3s';
+                    } else if (faceInCircleTime === 1000) {
+                        document.querySelector('.instructions').textContent = 'Please position your face within the circle in 2s';
+                    } else if (faceInCircleTime === 2000) {
+                        document.querySelector('.instructions').textContent = 'Please position your face within the circle in 1s';
+                    } else if (faceInCircleTime === 0) {
+                        document.querySelector('.instructions').textContent = 'Please position your face within the circle in 0s';
+                    }
                     faceInCircleTime += 100;
                     if (faceInCircleTime >= requiredTime) {
                         captureImage(video);
@@ -91,7 +100,9 @@ async function captureImage(video) {
     };
     img.src = imageData;
 
-    document.querySelector('.instructions').textContent = 'Please wait ...';
+    const instructions = document.querySelector('.instructions');
+    instructions.textContent = 'Please wait';
+    instructions.classList.add('processing');
 
     try {
         const response = await fetch('/upload-image', {
@@ -104,8 +115,9 @@ async function captureImage(video) {
         const result = await response.json();
         console.log('Uploaded Image URL:', result.url);
         faceURL = result.url;
-        document.querySelector('.instructions').textContent = 'Face recognition successful!';
-        document.querySelector('.instructions').style.color = '#4CAF50'; 
+        instructions.textContent = 'Face recognition successful!';
+        instructions.style.color = '#4CAF50'; 
+        instructions.classList.remove('processing');
 
     } catch (error) {
         console.error('Error uploading image', error);

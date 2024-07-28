@@ -72,6 +72,34 @@
             .alert:empty {
                 display: none;
             }
+            .processing {
+                position: relative;
+                padding-right: 20px;
+            }
+            
+            .processing::after {
+                content: '';
+                position: absolute;
+                top: 50%;
+                right: 0;
+                width: 12px;
+                height: 12px;
+                margin-top: -6px;
+                border: 2px solid #fff;
+                border-radius: 50%;
+                border-right-color: transparent;
+                border-left-color: transparent;
+                animation: spin 0.8s linear infinite;
+            }
+            
+            @keyframes spin {
+                from {
+                    transform: rotate(0deg);
+                }
+                to {
+                    transform: rotate(360deg);
+                }
+            }
         </style>
     </head>
 

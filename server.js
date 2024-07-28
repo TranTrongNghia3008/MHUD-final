@@ -68,11 +68,11 @@ app.get('/', (req, res) => {
     res.redirect('/login');
 });
 
-app.get('/room', (req, res) => {
+app.get('/room', ensureAuthenticated, (req, res) => {
     res.redirect(`room/${uuid()}`);
 });
 
-app.get("/room/:roomId", (req, res) => {
+app.get("/room/:roomId", ensureAuthenticated, (req, res) => {
     const roomId = req.params.roomId;
     res.render('index', { roomId });
 });
