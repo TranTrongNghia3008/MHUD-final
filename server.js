@@ -134,23 +134,6 @@ app.post('/upload', upload.single('file'), (req, res) => {
     res.send({ fileUrl, filename: req.file.originalname });
 });
 
-// API để lưu ảnh
-// app.post('/upload-image', (req, res) => {
-//     const { imageData } = req.body;
-//     const base64Data = imageData.replace(/^data:image\/png;base64,/, '');
-//     const imgName = `face_${Date.now()}.png`;
-
-//     const imgPath = path.join(__dirname, 'public', 'img', imgName);
-//     console.log(imgPath)
-
-//     fs.writeFile(imgPath, base64Data, 'base64', (err) => {
-//         if (err) {
-//             return res.status(500).send('Error saving image');
-//         }
-//         res.send('Image saved successfully');
-//     });
-// });
-
 app.post('/upload-image', async (req, res) => {
     try {
         const { imageData } = req.body;
