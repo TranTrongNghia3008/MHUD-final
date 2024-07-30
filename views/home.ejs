@@ -47,10 +47,10 @@
         <header>
             <nav class="navbar navbar-expand-sm navbar-light bg-light d-flex px-3 justify-content-between">
                 <div class="navbar-brand ms-5" >
-                    <img src="img/logo.webp" alt="" class="logo" style="width: 3rem; height: 3rem;"/>
+                    <img src="/img/logo.webp" alt="" class="logo" style="width: 3rem; height: 3rem;"/>
                     <a class="navbar-brand mb-0 h1">Kallie: Secure Video Web Call</a>
                 </div>
-                <a class="btn btn-success" href="/logout">Log out</a>
+                <a class="btn btn-success" href="/auth/logout">Log out</a>
             </nav>
         </header>
         <main>
@@ -87,7 +87,7 @@
         
                 document.getElementById('createRoomBtn').addEventListener('click', function() {
                     // Implement create room functionality here
-                    window.location.href = '/room';
+                    window.location.href = '/create-room';
                 });
         
                 document.getElementById('joinRoomBtn').addEventListener('click', function() {
