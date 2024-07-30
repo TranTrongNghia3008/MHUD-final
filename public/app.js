@@ -157,7 +157,7 @@ async function captureAndCheckLiveness() {
             } else {
                 console.log('Liveness check failed. Redirecting to login...');
                 // Chuyển hướng về trang login
-                window.location.href = '/login';
+                window.location.href = '/auth/login';
             }
         } catch (error) {
             console.error('Error:', error);

@@ -9,8 +9,8 @@ async function startVideo() {
         const videoElement = document.getElementById('videoElement');
         videoElement.srcObject = stream;
         await faceapi.nets.tinyFaceDetector.loadFromUri('/lib/weights');
-        // await faceapi.nets.faceLandmark68Net.loadFromUri('/lib/weights');
-        // await faceapi.nets.faceRecognitionNet.loadFromUri('/lib/weights');
+        await faceapi.nets.faceLandmark68Net.loadFromUri('/lib/weights');
+        await faceapi.nets.faceRecognitionNet.loadFromUri('/lib/weights');
         detectFace();
     } catch (error) {
         console.error('Error accessing the camera', error);
@@ -28,6 +28,7 @@ async function detectFace() {
     const options = new faceapi.TinyFaceDetectorOptions();
 
     const result = await faceapi.detectSingleFace(video, options);
+    console.log('sfd')
 
     overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
@@ -105,7 +106,7 @@ async function captureImage(video) {
     instructions.classList.add('processing');
 
     try {
-        const response = await fetch('/upload-image', {
+        const response = await fetch('/auth/upload-image', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -143,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (name && email && password && faceURL) {
             event.preventDefault();
             try {
-                const response = await fetch('/register', {
+                const response = await fetch('/auth/register', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -155,13 +156,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (!response.ok) {
                     const errorData = await response.json();
-                    window.location.href = '/register';
+                    window.location.href = '/auth/register';
                     throw new Error(errorData.message);              
                 }
                                     
 
 
-                window.location.href = '/login';
+                window.location.href = '/auth/login';
     
             } catch (error) {
                 console.error('Error uploading image', error);

@@ -11,8 +11,8 @@ async function startVideo() {
         const videoElement = document.getElementById('videoElement');
         videoElement.srcObject = stream;
         await faceapi.nets.tinyFaceDetector.loadFromUri('/lib/weights');
-        // await faceapi.nets.faceLandmark68Net.loadFromUri('/lib/weights');
-        // await faceapi.nets.faceRecognitionNet.loadFromUri('/lib/weights');
+        await faceapi.nets.faceLandmark68Net.loadFromUri('/lib/weights');
+        await faceapi.nets.faceRecognitionNet.loadFromUri('/lib/weights');
         detectFace();
     } catch (error) {
         console.error('Error accessing the camera', error);
@@ -101,7 +101,7 @@ async function captureImage(video) {
     instructions.classList.add('processing');
 
     try {
-        const response = await fetch('/upload-image', {
+        const response = await fetch('/auth/upload-image', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -120,7 +120,7 @@ async function captureImage(video) {
 
     // Handle the captured image (e.g., send to server or display to user)
     try {
-        const response = await fetch('/face-authentication', {
+        const response = await fetch('/auth/face-authentication', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
             event.preventDefault();
 
             try {
-                const response = await fetch('/check-email-password', {
+                const response = await fetch('/auth/check-email-password', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
